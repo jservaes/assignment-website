@@ -11,6 +11,10 @@ CMakeCache.txt
 cmake_install.cmake
 Makefile.cmake
 
+# CodeQL
+_codeql_build_dir/
+_codeql_detected_source_root
+
 # IDE files
 .vscode/
 .idea/
@@ -21,3 +25,7 @@ Makefile.cmake
 # OS files
 .DS_Store
 Thumbs.db
+
+# Temporary files
+*.log
+nohup.out
