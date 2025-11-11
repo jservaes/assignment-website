@@ -1,4 +1,5 @@
 #include "assignment.h"
+#include "user_manager.h"
 #include <iostream>
 #include <sstream>
 #include <cstring>
@@ -9,7 +10,7 @@
 
 class WebServer {
 private:
-    AssignmentTracker tracker;
+    UserManager userManager;
     int port;
 
     std::string urlDecode(const std::string& str) {
@@ -44,6 +45,20 @@ private:
         return urlDecode(data.substr(pos, end - pos));
     }
 
+    std::string getCookie(const std::string& headers, const std::string& name) {
+        size_t pos = headers.find("Cookie:");
+        if (pos == std::string::npos) return "";
+        
+        size_t start = headers.find(name + "=", pos);
+        if (start == std::string::npos) return "";
+        
+        start += name.length() + 1;
+        size_t end = headers.find_first_of(";\r\n", start);
+        if (end == std::string::npos) end = headers.length();
+        
+        return headers.substr(start, end - start);
+    }
+
     time_t parseDate(const std::string& dateStr) {
         struct tm tm = {};
         // Parse YYYY-MM-DD format manually for better compatibility
@@ -67,7 +82,119 @@ private:
         return std::string(buffer);
     }
 
-    std::string generateHTML() {
+    std::string generateLoginHTML() {
+        std::ostringstream html;
+        html << R"(<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Assignment Tracker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .login-container {
+            background: white;
+            border-radius: 15px;
+            padding: 50px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            max-width: 400px;
+            width: 100%;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            text-align: center;
+            font-size: 2.5em;
+        }
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 40px;
+        }
+        .form-group {
+            margin-bottom: 25px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #555;
+            font-weight: 600;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        button {
+            width: 100%;
+            background: #667eea;
+            color: white;
+            padding: 14px 30px;
+            border: none;
+            border-radius: 5px;
+            font-size: 18px;
+            cursor: pointer;
+            transition: background 0.3s;
+            font-weight: 600;
+        }
+        button:hover {
+            background: #5568d3;
+        }
+        .info {
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            font-size: 14px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="login-container">
+        <h1>📚 Assignment Tracker</h1>
+        <p class="subtitle">Enter your username to continue</p>
+        
+        <form method="POST" action="/login">
+            <div class="form-group">
+                <label for="username">Username:</label>
+                <input type="text" id="username" name="username" required 
+                       placeholder="Enter your username" autocomplete="username">
+            </div>
+            <button type="submit">Login</button>
+        </form>
+        
+        <div class="info">
+            <strong>Note:</strong> This is a simple demo. Just enter any username to create or access your personal assignment tracker. Your data is private and separate from other users.
+        </div>
+    </div>
+</body>
+</html>
+)";
+        return html.str();
+    }
+
+    std::string generateHTML(const std::string& username, AssignmentTracker* tracker) {
         std::ostringstream html;
         html << R"(<!DOCTYPE html>
 <html lang="en">
@@ -245,11 +372,41 @@ private:
             margin-bottom: 20px;
             opacity: 0.3;
         }
+        .user-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+        .user-info {
+            font-size: 1.1em;
+            color: #555;
+        }
+        .user-info strong {
+            color: #667eea;
+        }
+        .btn-logout {
+            background: #dc3545;
+            padding: 8px 20px;
+            font-size: 14px;
+        }
+        .btn-logout:hover {
+            background: #c82333;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>📚 Assignment Tracker</h1>
+        
+        <div class="user-header">
+            <div class="user-info">Welcome, <strong>)" << username << R"(</strong></div>
+            <form method="POST" action="/logout" style="display: inline;">
+                <button type="submit" class="btn-logout">Logout</button>
+            </form>
+        </div>
         
         <div class="form-container">
             <h2 style="margin-bottom: 20px; color: #333;">Add New Item</h2>
@@ -284,7 +441,7 @@ private:
         <div class="assignments-list">
 )";
 
-        auto assignments = tracker.getActiveAssignments();
+        auto assignments = tracker->getActiveAssignments();
         if (assignments.empty()) {
             html << R"(
             <div class="empty-state">
@@ -346,12 +503,33 @@ private:
         std::string method, path, version;
         stream >> method >> path >> version;
 
-        // Read headers to find Content-Length
+        // Store the full header for cookie parsing
+        std::string headers;
         std::string line;
         int contentLength = 0;
-        while (std::getline(stream, line) && line != "\r") {
+        
+        std::getline(stream, line); // Skip the first newline after the request line
+        while (std::getline(stream, line)) {
+            // Remove carriage return if present
+            if (!line.empty() && line.back() == '\r') {
+                line.pop_back();
+            }
+            
+            // Empty line indicates end of headers
+            if (line.empty()) break;
+            
+            headers += line + "\n";
             if (line.find("Content-Length:") == 0) {
-                contentLength = std::stoi(line.substr(15));
+                // Skip "Content-Length: " (with space)
+                size_t pos = line.find(':');
+                if (pos != std::string::npos) {
+                    std::string value = line.substr(pos + 1);
+                    // Trim leading whitespace
+                    size_t start = value.find_first_not_of(" \t");
+                    if (start != std::string::npos) {
+                        contentLength = std::stoi(value.substr(start));
+                    }
+                }
             }
         }
 
@@ -362,33 +540,91 @@ private:
             stream.read(&body[0], contentLength);
         }
 
+        // Get session from cookie
+        std::string sessionId = getCookie(headers, "session");
+        std::string username = userManager.getUserFromSession(sessionId);
+
         std::string response;
-        if (method == "GET" && path == "/") {
-            std::string html = generateHTML();
+        
+        // Handle login page
+        if (method == "GET" && path == "/" && username.empty()) {
+            std::string html = generateLoginHTML();
             response = "HTTP/1.1 200 OK\r\n";
             response += "Content-Type: text/html; charset=UTF-8\r\n";
             response += "Content-Length: " + std::to_string(html.length()) + "\r\n";
             response += "\r\n";
             response += html;
-        } else if (method == "POST" && path == "/add") {
-            std::string title = parseFormData(body, "title");
-            std::string description = parseFormData(body, "description");
-            std::string categoryStr = parseFormData(body, "category");
-            std::string dueDateStr = parseFormData(body, "dueDate");
+        }
+        // Handle login POST
+        else if (method == "POST" && path == "/login") {
+            std::string loginUsername = parseFormData(body, "username");
+            if (!loginUsername.empty()) {
+                std::string newSessionId = userManager.loginUser(loginUsername);
+                response = "HTTP/1.1 303 See Other\r\n";
+                response += "Set-Cookie: session=" + newSessionId + "; Path=/; HttpOnly\r\n";
+                response += "Location: /\r\n";
+                response += "\r\n";
+            } else {
+                response = "HTTP/1.1 303 See Other\r\n";
+                response += "Location: /\r\n";
+                response += "\r\n";
+            }
+        }
+        // Handle logout
+        else if (method == "POST" && path == "/logout") {
+            if (!sessionId.empty()) {
+                userManager.logout(sessionId);
+            }
+            response = "HTTP/1.1 303 See Other\r\n";
+            response += "Set-Cookie: session=; Path=/; HttpOnly; Max-Age=0\r\n";
+            response += "Location: /\r\n";
+            response += "\r\n";
+        }
+        // Main page (requires login)
+        else if (method == "GET" && path == "/") {
+            AssignmentTracker* tracker = userManager.getTracker(username);
+            if (tracker) {
+                std::string html = generateHTML(username, tracker);
+                response = "HTTP/1.1 200 OK\r\n";
+                response += "Content-Type: text/html; charset=UTF-8\r\n";
+                response += "Content-Length: " + std::to_string(html.length()) + "\r\n";
+                response += "\r\n";
+                response += html;
+            } else {
+                // Redirect to login if not authenticated
+                response = "HTTP/1.1 303 See Other\r\n";
+                response += "Location: /\r\n";
+                response += "\r\n";
+            }
+        }
+        // Add assignment (requires login)
+        else if (method == "POST" && path == "/add") {
+            AssignmentTracker* tracker = userManager.getTracker(username);
+            if (tracker) {
+                std::string title = parseFormData(body, "title");
+                std::string description = parseFormData(body, "description");
+                std::string categoryStr = parseFormData(body, "category");
+                std::string dueDateStr = parseFormData(body, "dueDate");
 
-            Category category = Assignment::stringToCategory(categoryStr);
-            time_t dueDate = parseDate(dueDateStr);
+                Category category = Assignment::stringToCategory(categoryStr);
+                time_t dueDate = parseDate(dueDateStr);
 
-            tracker.addAssignment(title, description, category, dueDate);
-
+                tracker->addAssignment(title, description, category, dueDate);
+            }
+            
             // Redirect to home
             response = "HTTP/1.1 303 See Other\r\n";
             response += "Location: /\r\n";
             response += "\r\n";
-        } else if (method == "POST" && path == "/done") {
-            std::string idStr = parseFormData(body, "id");
-            int id = std::stoi(idStr);
-            tracker.markDone(id);
+        }
+        // Mark done (requires login)
+        else if (method == "POST" && path == "/done") {
+            AssignmentTracker* tracker = userManager.getTracker(username);
+            if (tracker) {
+                std::string idStr = parseFormData(body, "id");
+                int id = std::stoi(idStr);
+                tracker->markDone(id);
+            }
 
             // Redirect to home
             response = "HTTP/1.1 303 See Other\r\n";
