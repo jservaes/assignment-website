@@ -34,6 +34,7 @@ Each user has their own private workspace. Users cannot see other users' assignm
 ## Architecture
 
 - **assignment.h**: Core data structures for assignments and the assignment tracker
+- **index.html**: Design of webapp code
 - **user_manager.h**: User authentication and session management
 - **server.cpp**: HTTP server handling requests and serving the web interface
 - **CMakeLists.txt** and **Makefile**: Build configuration files
