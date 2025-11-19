@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Assignment Tracker</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <header class="app-header">
+      <h1>Assignment Tracker</h1>
+      <div class="user-info">
+        <label>User ID:</label>
+        <input type="number" id="userIdInput" value="1">
+        <button id="loadBtn">Load</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="new-item-card">
+        <h2>Add Item</h2>
+        <form id="newItemForm">
+          <input type="text" id="title" placeholder="Title" required>
+          <textarea id="description" placeholder="Description (optional)"></textarea>
+          <div class="form-row">
+            <select id="category">
+              <option>Assignment</option>
+              <option>Exam</option>
+              <option>Quiz</option>
+              <option>Meeting</option>
+              <option>Presentation</option>
+            </select>
+            <input type="datetime-local" id="dueDate" required>
+          </div>
+          <button type="submit">Add</button>
+        </form>
+      </section>
+
+      <section>
+        <h2>Your Items</h2>
+        <div id="itemsGrid" class="items-grid"></div>
+      </section>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
