@@ -4,41 +4,15 @@ A C++ assignment tracker with a web interface that allows multiple users to mana
 
 ## Features
 
-- **Multi-user Support**: Different users can log in with unique usernames and maintain their own private assignment lists
 - **Category System**: Organize items by type (Assignment, Exam, Quiz, Meeting, Presentation)
 - **Smart Notifications**:
   - Items due within 3 days are highlighted with a "Due Soon" badge
   - Overdue items are highlighted with an "OVERDUE!" badge
 - **Auto-removal**: Items are automatically removed when marked as done
-- **Modern Web Interface**: Clean, responsive design with gradient background and card-based layout
 - **Color-coded Categories**: Each category has its own distinct color for easy identification
 
-## Building the Project
 
-### Prerequisites
-- C++17 compatible compiler (g++, clang++)
-- Make or CMake
 
-### Using Make
-```bash
-make
-```
-
-### Using CMake
-```bash
-mkdir build
-cd build
-cmake ..
-make
-```
-
-## Running the Application
-
-```bash
-./assignment_tracker
-```
-
-The server will start on http://localhost:8080
 
 ## Usage
 
@@ -81,6 +55,3 @@ Each user has their own private workspace. Users cannot see other users' assignm
 - Email notifications for approaching due dates
 - Export assignments to calendar formats
 
-## License
-
-This is a demo/educational project.
